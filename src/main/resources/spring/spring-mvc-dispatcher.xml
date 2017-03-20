@@ -1,0 +1,112 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<beans xmlns="http://www.springframework.org/schema/beans"
+       xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+       xmlns:context="http://www.springframework.org/schema/context"
+       xmlns:mvc="http://www.springframework.org/schema/mvc"
+       xsi:schemaLocation="http://www.springframework.org/schema/beans http://www.springframework.org/schema/beans/spring-beans.xsd
+       http://www.springframework.org/schema/context http://www.springframework.org/schema/context/spring-context.xsd
+       http://www.springframework.org/schema/mvc http://www.springframework.org/schema/mvc/spring-mvc.xsd">
+
+    <!--指明 controller 所在包，并扫描其中的注解-->
+    <context:component-scan base-package="com.credit.controller"/>
+    <!-- 静态资源(js、image等)的访问 -->
+    <mvc:default-servlet-handler/>
+
+    <!-- 开启注解 -->
+    <mvc:annotation-driven/>
+
+    <!--ViewResolver 视图解析器-->
+    <!--用于支持Servlet、JSP视图解析-->
+    <bean id="jspViewResolver" class="org.springframework.web.servlet.view.InternalResourceViewResolver">
+        <property name="viewClass" value="org.springframework.web.servlet.view.JstlView"/>
+        <property name="prefix" value="/WEB-INF/pages/"/>
+        <property name="suffix" value=".jsp"/>
+    </bean>
+
+    <!-- 该异常是SpringMVC在检查上传的文件信息时抛出来的，而且此时还没有进入到Controller方法中 -->
+    <bean id="exceptionResolver" class="com.credit.common.exception.UtnSimpleMappingExceptionResolver">
+        <property name="exceptionMappings">
+            <props>
+                <!-- 遇到MaxUploadSizeExceededException异常时，自动跳转到/WEB-INF/jsp/error_fileupload.jsp页面 -->
+                <prop key="org.springframework.validation.BindException">error/500</prop>
+                <prop key="org.springframework.web.multipart.MaxUploadSizeExceededException">error/maxUploadExceeded</prop>
+            </props>
+        </property>
+    </bean>
+
+    <bean id="validator" class="org.springframework.validation.beanvalidation.LocalValidatorFactoryBean">
+        <property name="providerClass"  value="org.hibernate.validator.HibernateValidator"/>
+        <!--不设置则默认为classpath下的 ValidationMessages.properties
+        <property name="validationMessageSource" ref="validatemessageSource"/>-->
+    </bean>
+    <mvc:annotation-driven validator="validator" >
+        <mvc:message-converters register-defaults="true">
+            <!-- 配置Fastjson支持 -->
+            <bean class="com.alibaba.fastjson.support.spring.FastJsonHttpMessageConverter4">
+                <property name="supportedMediaTypes">
+                    <list>
+                        <value>text/html;charset=UTF-8</value>
+                        <value>application/json</value>
+                    </list>
+                </property>
+                <property name="fastJsonConfig">
+                    <bean class="com.alibaba.fastjson.support.config.FastJsonConfig">
+                        <property name="features">
+                            <list>
+                                <value>AllowArbitraryCommas</value>
+                                <value>AllowUnQuotedFieldNames</value>
+                                <value>DisableCircularReferenceDetect</value>
+                            </list>
+                        </property>
+                        <property name="serializerFeatures">
+                            <list>
+                                <value>WriteNullStringAsEmpty</value>
+                            </list>
+                        </property>
+                        <property name="dateFormat" value="yyyy-MM-dd HH:mm:ss"/>
+                    </bean>
+                </property>
+            </bean>
+        </mvc:message-converters>
+    </mvc:annotation-driven>
+
+    <bean id="contentNegotiationManager" class="org.springframework.web.accept.ContentNegotiationManagerFactoryBean">
+        <property name="favorPathExtension" value="true" />
+        <property name="favorParameter" value="true" />
+        <property name="defaultContentType" value="text/html"/>
+        <property name="mediaTypes" >
+            <value>
+                json=application/json
+                xml=application/xml
+            </value>
+        </property>
+    </bean>
+
+    <mvc:interceptors>
+        <mvc:interceptor>
+            <mvc:mapping path="/**"/>
+            <bean class="com.credit.common.validator.TokenInterceptor"/>
+        </mvc:interceptor>
+        <mvc:interceptor>
+            <mvc:mapping path="/**"/>
+            <mvc:exclude-mapping path="/test*"/>
+            <bean class="com.credit.interceptor.LoginCheckInterceptor">
+                <property name="unCheckUrlList">
+                    <list>
+                        <value>/login</value>
+                        <value>/password</value>
+                    </list>
+                </property>
+            </bean>
+        </mvc:interceptor>
+
+    </mvc:interceptors>
+
+    <!-- SpringMVC上传文件时，需要配置MultipartResolver处理器 -->
+    <bean id="multipartResolver" class="org.springframework.web.multipart.commons.CommonsMultipartResolver">
+        <property name="defaultEncoding" value="UTF-8"/>
+        <!-- 指定所上传文件的总大小不能超过1M。注意maxUploadSize属性的限制不是针对单个文件，而是所有文件的容量之和 -->
+        <property name="maxUploadSize" value="1048576"/>
+    </bean>
+
+</beans>

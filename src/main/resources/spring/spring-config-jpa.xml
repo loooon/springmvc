@@ -1,0 +1,127 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<beans xmlns="http://www.springframework.org/schema/beans"
+       xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+       xmlns:jpa="http://www.springframework.org/schema/data/jpa"
+       xmlns:tx="http://www.springframework.org/schema/tx" xmlns:context="http://www.springframework.org/schema/context"
+       xsi:schemaLocation="http://www.springframework.org/schema/beans http://www.springframework.org/schema/beans/spring-beans.xsd
+       http://www.springframework.org/schema/data/jpa http://www.springframework.org/schema/data/jpa/spring-jpa.xsd
+       http://www.springframework.org/schema/tx http://www.springframework.org/schema/tx/spring-tx.xsd http://www.springframework.org/schema/context http://www.springframework.org/schema/context/spring-context.xsd">
+
+    <!-- 表示JPA Repository所在的包 -->
+    <jpa:repositories base-package="com.credit.repository"/>
+    <context:component-scan base-package="com.credit.service"/>
+
+    <bean id="entityManagerFactory" class="org.springframework.orm.jpa.LocalContainerEntityManagerFactoryBean">
+        <property name="persistenceUnitName" value="defaultPersistenceUnit"/>
+        <property name="packagesToScan" value="com.credit.entity"/>
+        <property name="jpaVendorAdapter">
+            <bean class="org.springframework.orm.jpa.vendor.HibernateJpaVendorAdapter"/>
+        </property>
+        <property name="jpaProperties">
+            <props>
+                <prop key="hibernate.connection.driver_class">${jdbc.driver}</prop>
+                <prop key="hibernate.connection.url">${jdbc.url}</prop>
+                <prop key="hibernate.connection.username">${jdbc.user}</prop>
+                <prop key="hibernate.connection.password">${jdbc.password}</prop>
+                <prop key="hibernate.show_sql">true</prop>
+                <prop key="hibernate.connection.useUnicode">true</prop>
+                <prop key="hibernate.connection.characterEncoding">UTF-8</prop>
+                <prop key="hibernate.format_sql">false</prop>
+                <prop key="hibernate.use_sql_comments">false</prop>
+                <prop key="hibernate.hbm2ddl.auto">update</prop>
+                <prop key="hibernate.connection.autoReconnect">true</prop>
+                <prop key="hibernate.dialect">${jdbc.dialect}</prop>
+                <prop key="connection.autoReconnectForPools">true</prop>
+                <prop key="connection.is-connection-validation-required">true</prop>
+
+                <prop key="hibernate.c3p0.validate">true</prop>
+                <prop key="hibernate.connection.provider_class">
+                    org.hibernate.service.jdbc.connections.internal.C3P0ConnectionProvider
+                </prop>
+                <prop key="hibernate.c3p0.min_size">${jdbc.minPoolSize}</prop>
+                <prop key="hibernate.c3p0.max_size">${jdbc.maxPoolSize}</prop>
+                <prop key="hibernate.c3p0.timeout">${jdbc.maxIdleTime}</prop>
+                <prop key="hibernate.c3p0.max_statements">${jdbc.maxStatements}</prop>
+                <prop key="hibernate.c3p0.preferredTestQuery">SELECT 1;</prop>
+                <prop key="hibernate.c3p0.testConnectionOnCheckout">${jdbc.testConnectionOnCheckout}</prop>
+                <prop key="hibernate.c3p0.idle_test_period">${jdbc.idleConnectionTestPeriod}</prop>
+            </props>
+        </property>
+    </bean>
+
+    <!-- 事务管理 -->
+    <bean id="transactionManager" class="org.springframework.orm.jpa.JpaTransactionManager">
+        <property name="entityManagerFactory" ref="entityManagerFactory"/>
+    </bean>
+
+    <bean class="org.springframework.beans.factory.config.PropertyPlaceholderConfigurer">
+        <property name="systemPropertiesModeName" value="SYSTEM_PROPERTIES_MODE_OVERRIDE"/>
+        <property name="ignoreResourceNotFound" value="true"/>
+        <property name="locations">
+            <list>
+                <!-- 标准配置 -->
+                <value>classpath*:conf/*.properties</value>
+            </list>
+        </property>
+    </bean>
+    <!-- 开启事务管理注解 -->
+    <tx:annotation-driven transaction-manager="transactionManager"/>
+
+    <!--  Transaction interceptor  -->
+    <bean id="transactionInterceptor" class="com.credit.common.datasource.TransactionInterceptor">
+        <property name="transactionManager" ref="transactionManager" />
+        <property name="transactionAttributes">
+            <props>
+                <prop key="insert*">PROPAGATION_REQUIRED,-Exception</prop>
+                <prop key="update*">PROPAGATION_REQUIRED,-Exception</prop>
+                <prop key="edit*">PROPAGATION_REQUIRED,-Exception</prop>
+                <prop key="save*">PROPAGATION_REQUIRED,-Exception</prop>
+                <prop key="add*">PROPAGATION_REQUIRED,-Exception</prop>
+                <prop key="new*">PROPAGATION_REQUIRED,-Exception</prop>
+                <prop key="set*">PROPAGATION_REQUIRED,-Exception</prop>
+                <prop key="remove*">PROPAGATION_REQUIRED,-Exception</prop>
+                <prop key="delete*">PROPAGATION_REQUIRED,-Exception</prop>
+                <prop key="change*">PROPAGATION_REQUIRED,-Exception</prop>
+                <prop key="put*">PROPAGATION_REQUIRED,-Exception</prop>
+
+                <prop key="get*">PROPAGATION_REQUIRED,readOnly,-Exception</prop>
+                <prop key="find*">PROPAGATION_REQUIRED,readOnly,-Exception</prop>
+                <prop key="load*">PROPAGATION_REQUIRED,readOnly,-Exception</prop>
+                <prop key="search*">PROPAGATION_REQUIRED,readOnly,-Exception</prop>
+                <prop key="query*">PROPAGATION_REQUIRED,readOnly,-Exception</prop>
+                <prop key="use*">PROPAGATION_REQUIRED,readOnly,-Exception</prop>
+                <prop key="count*">PROPAGATION_REQUIRED,readOnly,-Exception</prop>
+                <prop key="list*">PROPAGATION_REQUIRED,readOnly,-Exception</prop>
+                <prop key="*">PROPAGATION_REQUIRED,readOnly,-Exception</prop>
+            </props>
+        </property>
+        <property name="prefixs">
+            <set>
+                <value>insert</value>
+                <value>update</value>
+                <value>edit</value>
+                <value>save</value>
+                <value>add</value>
+                <value>new</value>
+                <value>set</value>
+                <value>remove</value>
+                <value>delete</value>
+                <value>change</value>
+                <value>put</value>
+            </set>
+        </property>
+    </bean>
+    <!-- BeanName auto proxy to define the interceptor -->
+    <bean class="org.springframework.aop.framework.autoproxy.BeanNameAutoProxyCreator">
+        <property name="beanNames">
+            <list>
+                <value>*Service</value>
+            </list>
+        </property>
+        <property name="interceptorNames">
+            <list>
+                <value>transactionInterceptor</value>
+            </list>
+        </property>
+    </bean>
+</beans>
